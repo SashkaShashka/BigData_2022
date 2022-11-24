@@ -8,7 +8,7 @@
 4.2. Password: mapr
 Ждать.... После установки и запуска можно входить c помощью
 5. Откроем выбочую директорию: cd /home/mapr/lab_1
-6. Скачаем все необходимое:
+6. Скачаем все необходимое: </br>
 6.1. echo 'export PATH=$PATH:/opt/mapr/spark/spark-3.2.0/bin' > /root/.bash_profile </br>
 6.2. source /root/.bash_profile </br>
 6.3. apt-get update && apt-get install -y python3-distutils python3-apt </br>
