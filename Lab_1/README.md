@@ -6,7 +6,7 @@
 4. Для более удобной работы, подключимся к серверу из cmd </br>
 4.1. ssh root@localhost -p 2222  </br>
 4.2. Password: mapr  </br>
-5. Откроем выбочую директорию: cd /home/mapr/lab_1
+5. Откроем выбранную директорию: cd /home/mapr/lab_1
 6. Скачаем все необходимое: </br>
 6.1. echo 'export PATH=$PATH:/opt/mapr/spark/spark-3.2.0/bin' > /root/.bash_profile </br>
 6.2. source /root/.bash_profile </br>
