@@ -1,3 +1,4 @@
+# Lab 1 - Introduction to Apache Spark
 ### Установка и запуск 
 1. В рабочую папку положили docker-compose.yml
 2. Через cmd запустили команду: docker-compose up --build -d
