@@ -9,14 +9,14 @@
 Ждать.... После установки и запуска можно входить c помощью
 5. Откроем выбочую директорию: cd /home/mapr/lab_1
 6. Скачаем все необходимое:
-6.1. echo 'export PATH=$PATH:/opt/mapr/spark/spark-3.2.0/bin' > /root/.bash_profile 
-6.2. source /root/.bash_profile 
-6.3. apt-get update && apt-get install -y python3-distutils python3-apt 
-6.4. wget https://bootstrap.pypa.io/pip/3.6/get-pip.py 
-6.5. python3 get-pip.py 
-6.6. pip install jupyter  
-6.7. pip install pyspark 
-7. Запустим ноутбук командой: jupyter-notebook --ip=0.0.0.0 --port=50001 --allow-root --no-browser
+6.1. echo 'export PATH=$PATH:/opt/mapr/spark/spark-3.2.0/bin' > /root/.bash_profile </br>
+6.2. source /root/.bash_profile </br>
+6.3. apt-get update && apt-get install -y python3-distutils python3-apt </br>
+6.4. wget https://bootstrap.pypa.io/pip/3.6/get-pip.py </br>
+6.5. python3 get-pip.py </br>
+6.6. pip install jupyter  </br>
+6.7. pip install pyspark </br>
+7. Запустим ноутбук командой: jupyter-notebook --ip=0.0.0.0 --port=50001 --allow-root --no-browser </br>
 7.1. Открываем в браузере
 Открываем ссылку в браузере:
 ![image](https://user-images.githubusercontent.com/62326372/203779844-c7fdcf70-979d-4c33-b282-e51183c69b9f.png)
