@@ -4,9 +4,8 @@
 2. Через cmd запустили команду: docker-compose up --build -d
 3. Ждем скачивания и запуска образа
 4. Для более удобной работы, подключимся к серверу из cmd
-4.1. ssh root@localhost -p 2222
-4.2. Password: mapr
-Ждать.... После установки и запуска можно входить c помощью
+4.1. ssh root@localhost -p 2222 
+4.2. Password: mapr 
 5. Откроем выбочую директорию: cd /home/mapr/lab_1
 6. Скачаем все необходимое: </br>
 6.1. echo 'export PATH=$PATH:/opt/mapr/spark/spark-3.2.0/bin' > /root/.bash_profile </br>
