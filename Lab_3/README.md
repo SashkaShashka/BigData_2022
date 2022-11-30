@@ -1,195 +1,92 @@
-# Lab 3 - Stream processing with Apache Flink
+# Lab 4 - Zookeeper 
+### По разрешению буду использовать библиотеку kazoo, которая очень похожа на ZooKeeper, но на python.
 ## Решение
-### RideCleanisingExercise
+### Dining philosophers
 #### Задание
-The task of the exercise is to filter a data stream of taxi ride records to keep only rides that start and end within New York City. The resulting stream should be printed.
-#### Код
-```java
-private static class NYCFilter implements FilterFunction<TaxiRide> {
-
-    @Override
-    public boolean filter(TaxiRide taxiRide) throws Exception {
-        return GeoUtils.isInNYC(taxiRide.startLon, taxiRide.startLat) && GeoUtils.isInNYC(taxiRide.endLon, taxiRide.endLat);
-    }
-}
+Решите проблему обедающих философов (каждый философ - отдельный процесс в системе)
+#### Код и описание
+1. Создадим класс ```Philosopher```, который в себе содержит свой id, id левой и правой ложки, id левого и правого соседа, имя задачи и "путь" до вилок.
+```python
+class Philosopher(Process):
+    def __init__(self, task_name: str, id: int, fork_path: str, eat_seconds: int = 15, max_id: int = 5):
+        super().__init__()
+        self.root = task_name
+        self.fork = fork_path
+        self.id = id
+        self.left_fork_id = id
+        self.right_fork_id = id + 1 if id + 1 < max_id else 0
+        self.eat_seconds = eat_seconds
+        self.partner_id_left = id - 1 if id - 1 >= 0 else max_id-1
+        self.partner_id_right = id + 1 if id + 1 < max_id else 0
 ```
-#### Пояснение
-Используем библиотеку GeoUtils и с ее помощью определим поездки, которые были начаты и закончены в Нью-Йорке. Делать это будем с использованием координат начала и конца поездки, а также функции ``` isInNYC(float lon, float lat) ```.
-```java
-import com.ververica.flinktraining.exercises.datastream_java.utils.GeoUtils;
+2. Встаем в очередь, чтобы заблокировать стол (аналог общего процесса) и свои вилки (аналог менее общих процессов)
+```python
+table_lock = zk.Lock(f'{self.root}/table', self.id)
+        left_fork = zk.Lock(f'{self.root}/{self.fork}/{self.left_fork_id}', self.id)
+        right_fork = zk.Lock(f'{self.root}/{self.fork}/{self.right_fork_id}', self.id)
 ```
-### RidesAndFaresExercise
-#### Задание
-The goal for this exercise is to enrich TaxiRides with fare information.
-#### Код
-```java
-public static class EnrichmentFunction extends RichCoFlatMapFunction<TaxiRide, TaxiFare, Tuple2<TaxiRide, TaxiFare>> {
-
-  private ValueState<TaxiRide> taxiRideValueState;
-  private ValueState<TaxiFare> taxiFareValueState;
-
-  @Override
-  public void open(Configuration config) throws Exception {
-    ValueStateDescriptor<TaxiRide> taxiRideValueStateDescriptor = new ValueStateDescriptor<TaxiRide>(
-        "persistedTaxiRide", TaxiRide.class
-    );
-    ValueStateDescriptor<TaxiFare> taxiFareValueStateDescriptor = new ValueStateDescriptor<TaxiFare>(
-        "persistedTaxiFare", TaxiFare.class
-    );
-
-    this.taxiRideValueState = getRuntimeContext().getState(taxiRideValueStateDescriptor);
-    this.taxiFareValueState = getRuntimeContext().getState(taxiFareValueStateDescriptor);
-  }
-
-  @Override
-  public void flatMap1(TaxiRide ride, Collector<Tuple2<TaxiRide, TaxiFare>> out) throws Exception {
-    TaxiFare taxiFare = this.taxiFareValueState.value();
-    if (taxiFare != null) {
-      this.taxiFareValueState.clear();
-      out.collect(new Tuple2<>(ride, taxiFare));
-    } else {
-      this.taxiRideValueState.update(ride);
-    }
-  }
-
-  @Override
-  public void flatMap2(TaxiFare fare, Collector<Tuple2<TaxiRide, TaxiFare>> out) throws Exception {
-    TaxiRide taxiRide = this.taxiRideValueState.value();
-    if (taxiRide != null) {
-      this.taxiRideValueState.clear();
-      out.collect(new Tuple2<>(taxiRide, fare));
-    } else {
-      this.taxiFareValueState.update(fare);
-    }
-  }
-}
+3. Будем эмулировать работу программы в течение ```eat_seconds``` для каждого философа
+```python
+start = time()
+	while time() - start < self.eat_seconds:
 ```
-#### Пояснение
-Сделаем объединение 
-Определеляем значение taxiFareValueState. Если оно не ```null```, то очищаем его и добавляем пару значений в ```out```, иначе просто обновляем taxiRideValueState. Также делаем для taxiRideValueState.
-### HourlyTipsExerxise
-#### Задание
-The task of the exercise is to first calculate the total tips collected by each driver, hour by hour, and then from that stream, find the highest tip total in each hour.
-#### Код
-```java
-public class HourlyTipsExercise extends ExerciseBase {
-
-	public static void main(String[] args) throws Exception {
-
-		// read parameters
-		ParameterTool params = ParameterTool.fromArgs(args);
-		final String input = params.get("input", ExerciseBase.pathToFareData);
-
-		final int maxEventDelay = 60;       // events are out of order by max 60 seconds
-		final int servingSpeedFactor = 600; // events of 10 minutes are served in 1 second
-
-		// set up streaming execution environment
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		env.setParallelism(ExerciseBase.parallelism);
-
-		// start the data generator
-		DataStream<TaxiFare> fares = env.addSource(fareSourceOrTest(new TaxiFareSource(input, maxEventDelay, servingSpeedFactor)));
-		// compute tips per hour for each driver
-		DataStream<Tuple3<Long, Long, Float>> hourlyTips =
-				fares.keyBy(fare -> fare.driverId)
-						.timeWindow(Time.hours(1))
-						.process(new CalculateHourlyTips());
-
-		// find the driver with the highest sum of tips for each hour
-		DataStream<Tuple3<Long, Long, Float>> hourlyMax =
-				hourlyTips.timeWindowAll(Time.hours(1))
-						.maxBy(2);
-
-
-		printOrTest(hourlyMax);
-
-		// execute the transformation pipeline
-		env.execute("Hourly Tips (java)");
-	}
-
-	private static class CalculateHourlyTips
-			extends ProcessWindowFunction<TaxiFare, Tuple3<Long, Long, Float>, Long, TimeWindow> {
-
-		@Override
-		public void process(
-				Long key,
-				Context context,
-				Iterable<TaxiFare> fares,
-				Collector<Tuple3<Long, Long, Float>> out) {
-
-			float tipsSum = 0.0f;
-			for (TaxiFare fare : fares) {
-				tipsSum += fare.tip;
-			}
-			out.collect(Tuple3.of(context.window().getEnd(), key, tipsSum));
-		}
-	}
-}
+4. "Блокируем" вилки только, если они свободны и философ поел не больше, чем его соседи
+```python
+ with table_lock:
+	if len(left_fork.contenders()) == 0 and len(right_fork.contenders()) == 0 \
+		and counters[self.partner_id_right] >= counters[self.id] \
+		and counters[self.partner_id_left] >= counters[self.id]:
+    	left_fork.acquire()
+    	right_fork.acquire()
 ```
-#### Пояснение
-Напишем сумму, которая считает сумму чаевыех за час для каждого водителя, затем выберем наибольшие чаевые за час и вернем новые объекты, состоящие из времени конца временного окна, driverId и суммы его чаевых за этот час. 
-### ExpiringStateExercise
-#### Задание
-The goal for this exercise is to enrich TaxiRides with fare information.
-#### Код
-```java
-public static class EnrichmentFunction extends KeyedCoProcessFunction<Long, TaxiRide, TaxiFare, Tuple2<TaxiRide, TaxiFare>> {
-
-  private ValueState<TaxiRide> taxiRideValueState;
-  private ValueState<TaxiFare> taxiFareValueState;
-
-  @Override
-  public void open(Configuration config) throws Exception {
-    ValueStateDescriptor<TaxiRide> taxiRideDescriptor = new ValueStateDescriptor<>(
-        "persistedTaxiRide", TaxiRide.class
-    );
-    ValueStateDescriptor<TaxiFare> taxiFareDescriptor = new ValueStateDescriptor<>(
-        "persistedTaxiFare", TaxiFare.class
-    );
-
-    this.taxiRideValueState = getRuntimeContext().getState(taxiRideDescriptor);
-    this.taxiFareValueState = getRuntimeContext().getState(taxiFareDescriptor);
-  }
-
-  @Override
-  public void onTimer(long timestamp, OnTimerContext ctx, Collector<Tuple2<TaxiRide, TaxiFare>> out) throws Exception {
-    if (this.taxiFareValueState.value() != null) {
-      ctx.output(unmatchedFares, this.taxiFareValueState.value());
-      this.taxiFareValueState.clear();
-    }
-    if (this.taxiRideValueState.value() != null) {
-      ctx.output(unmatchedRides, this.taxiRideValueState.value());
-      this.taxiRideValueState.clear();
-    }
-  }
-
-  @Override
-  public void processElement1(TaxiRide ride, Context context, Collector<Tuple2<TaxiRide, TaxiFare>> out) throws Exception {
-    TaxiFare fare = this.taxiFareValueState.value();
-    if (fare != null) {
-      this.taxiFareValueState.clear();
-      context.timerService().deleteEventTimeTimer(ride.getEventTime());
-      out.collect(new Tuple2<>(ride, fare));
-    } else {
-      this.taxiRideValueState.update(ride);
-      context.timerService().registerEventTimeTimer(ride.getEventTime());
-    }
-  }
-
-  @Override
-  public void processElement2(TaxiFare fare, Context context, Collector<Tuple2<TaxiRide, TaxiFare>> out) throws Exception {
-    TaxiRide ride = this.taxiRideValueState.value();
-    if (ride != null) {
-      this.taxiRideValueState.clear();
-      context.timerService().deleteEventTimeTimer(fare.getEventTime());
-      out.collect(new Tuple2<>(ride, fare));
-    } else {
-      this.taxiFareValueState.update(fare);
-      context.timerService().registerEventTimeTimer(fare.getEventTime());
-    }
-  }
-}
+5. Если вилки "заблокированы", то кушаем, сообщаем об этом и увеличиваем счетчик количества приема пищи и "освобождаем" вилки, иначе думаем
+```python
+if left_fork.is_acquired and right_fork.is_acquired:
+	print(f'Philosopher {self.id}: Im eating')
+        counters[self.id] += 1
+        sleep(MEAL_TIME_SEC)
+        left_fork.release()
+        right_fork.release()
+	else:
+print(f'Philosopher {self.id}: Im thinking')
+	sleep(WAITING_TIME_SEC)
 ```
-#### Пояснение
-Делаем тоже самое, что во втором задании, только ждем не бесконечное количество времени, а сколько позволит таймер.
+6. Создаем все процессы необходимые и задаем константы
+```python
+master_zk = KazooClient()
+master_zk.start()
+if master_zk.exists('/task1'):
+	master_zk.delete('/task1', recursive=True)
+
+master_zk.create('/task1')
+master_zk.create('/task1/table')
+master_zk.create('/task1/forks')
+master_zk.create('/task1/forks/1')
+master_zk.create('/task1/forks/2')
+master_zk.create('/task1/forks/3')
+master_zk.create('/task1/forks/4')
+master_zk.create('/task1/forks/5')
+
+root = '/task1'
+fork_path = 'forks'
+seconds_eat = 30
+```
+7. Создаем общий ```list```, который хранит в себе количество приемов пищи каждого из философов, т.к. обычные ```list``` и ```int``` не синхронизируются при работе нескольких потоков (ссылки на counter соседнего/соседних филосов в классе ```Philosopher``` хранить нельзя). Также создаем философов, добавляем их в ```list``` 
+```python
+counters = Manager().list()
+p_list = list()
+for i in range(0, 5):
+	p = Philosopher(root, i, fork_path, seconds_eat)
+	counters.append(0)
+	p_list.append(p)
+```
+8. "Запускаем" каждого философа
+```python
+for p in p_list: 
+    p.start()
+```
+#### Результат
+Как можно видеть, каждый философ поел одинаковое количество раз (+-1), двух следующих итерациях поедят другие четыре философа и количество снова сравняется </br>
+![image](https://user-images.githubusercontent.com/62326372/204723956-560d0e43-b723-4b4d-9a47-14bf1a1624ed.png)</br>
+![image](https://user-images.githubusercontent.com/62326372/204723704-169b7b57-9cdf-4ec1-baae-995499c4b961.png)</br>
+
