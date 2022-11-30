@@ -10,8 +10,8 @@
 4.3. python3 get-pip.py
 4.4. pip install jupyter
 4.5. pip install kazoo
-5. Запустим ноутбук командой: jupyter-notebook --ip=0.0.0.0 --port=50001 --allow-root --no-browser
-5.1. Открываем ссылку в браузере:
+5. Запустим ноутбук командой: jupyter-notebook --ip=0.0.0.0 --port=50001 --allow-root --no-browser </br>
+5.1. Открываем ссылку в браузере
 ## Решение
 ### Dining philosophers
 #### Задание
