@@ -8,47 +8,47 @@
 1. Создадим класс ```Philosopher```, который в себе содержит свой id, id левой и правой ложки, id левого и правого соседа, имя задачи и "путь" до вилок.
 ```python
 class Philosopher(Process):
-    def __init__(self, task_name: str, id: int, fork_path: str, eat_seconds: int = 15, max_id: int = 5):
-        super().__init__()
-        self.root = task_name
-        self.fork = fork_path
-        self.id = id
-        self.left_fork_id = id
-        self.right_fork_id = id + 1 if id + 1 < max_id else 0
-        self.eat_seconds = eat_seconds
-        self.partner_id_left = id - 1 if id - 1 >= 0 else max_id-1
-        self.partner_id_right = id + 1 if id + 1 < max_id else 0
+	def __init__(self, task_name: str, id: int, fork_path: str, eat_seconds: int = 15, max_id: int = 5):
+		super().__init__()
+		self.root = task_name
+		self.fork = fork_path
+		self.id = id
+		self.left_fork_id = id
+		self.right_fork_id = id + 1 if id + 1 < max_id else 0
+		self.eat_seconds = eat_seconds
+		self.partner_id_left = id - 1 if id - 1 >= 0 else max_id-1
+		self.partner_id_right = id + 1 if id + 1 < max_id else 0
 ```
 2. Встаем в очередь, чтобы заблокировать стол (аналог общего процесса) и свои вилки (аналог менее общих процессов)
 ```python
 table_lock = zk.Lock(f'{self.root}/table', self.id)
-        left_fork = zk.Lock(f'{self.root}/{self.fork}/{self.left_fork_id}', self.id)
-        right_fork = zk.Lock(f'{self.root}/{self.fork}/{self.right_fork_id}', self.id)
+left_fork = zk.Lock(f'{self.root}/{self.fork}/{self.left_fork_id}', self.id)
+right_fork = zk.Lock(f'{self.root}/{self.fork}/{self.right_fork_id}', self.id)
 ```
 3. Будем эмулировать работу программы в течение ```eat_seconds``` для каждого философа
 ```python
 start = time()
-	while time() - start < self.eat_seconds:
+while time() - start < self.eat_seconds:
 ```
 4. "Блокируем" вилки только, если они свободны и философ поел не больше, чем его соседи
 ```python
- with table_lock:
+with table_lock:
 	if len(left_fork.contenders()) == 0 and len(right_fork.contenders()) == 0 \
 		and counters[self.partner_id_right] >= counters[self.id] \
 		and counters[self.partner_id_left] >= counters[self.id]:
-    	left_fork.acquire()
-    	right_fork.acquire()
+			left_fork.acquire()
+			right_fork.acquire()
 ```
 5. Если вилки "заблокированы", то кушаем, сообщаем об этом и увеличиваем счетчик количества приема пищи и "освобождаем" вилки, иначе думаем
 ```python
 if left_fork.is_acquired and right_fork.is_acquired:
 	print(f'Philosopher {self.id}: Im eating')
-        counters[self.id] += 1
-        sleep(MEAL_TIME_SEC)
-        left_fork.release()
-        right_fork.release()
-	else:
-print(f'Philosopher {self.id}: Im thinking')
+	counters[self.id] += 1
+	sleep(MEAL_TIME_SEC)
+	left_fork.release()
+	right_fork.release()
+else:
+	print(f'Philosopher {self.id}: Im thinking')
 	sleep(WAITING_TIME_SEC)
 ```
 6. Создаем все процессы необходимые и задаем константы
