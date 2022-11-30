@@ -1,5 +1,17 @@
 # Lab 4 - Zookeeper 
+## Установка и запуск
 ### По разрешению буду использовать библиотеку kazoo, которая очень похожа на ZooKeeper, но на python.
+1. В рабочую папку положили docker-compose.yml
+2. Через cmd запустили команду: docker-compose up --build -d
+3. Ждем скачивания и запуска образа
+4. В терминале Docker напишем следующие команды для установки всего необходимого
+4.1. apt-get update && apt-get install -y python3-distutils python3-apt
+4.2. wget https://bootstrap.pypa.io/pip/3.6/get-pip.py
+4.3. python3 get-pip.py
+4.4. pip install jupyter
+4.5. pip install kazoo
+5. Запустим ноутбук командой: jupyter-notebook --ip=0.0.0.0 --port=50001 --allow-root --no-browser
+5.1. Открываем ссылку в браузере:
 ## Решение
 ### Dining philosophers
 #### Задание
